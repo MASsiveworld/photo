@@ -46,12 +46,15 @@
 		let cartoon;
 		
 		function setup() {
+		if (typeof img !== 'undefined' && img !== null) {
 		canvas = createCanvas(img.width, img.height);
 		canvas.hide();
 		image(img, 0, 0);
 		cartoon = createImage(img.width, img.height);
 		cartoon.hide();
 		}
+		}
+		
 		
 		function loadImage(event) {
 		img = null;
