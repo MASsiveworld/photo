@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Image to PDF Converter</title>
+    <style type="text/css">
+    	body {
+    	font-family: Arial, sans-serif;
+    	margin: 0;
+    	padding: 0;
+    	}
+    	
+    	h1 {
+    	text-align: center;
+    	}
+    	
+    	input[type="file"] {
+    	display: block;
+    	margin: 0 auto;
+    	text-align: center;
+    	}
+    	
+    	button {
+    	display: block;
+    	margin: 10px auto;
+    	}
+    	
+    	#output {
+    	text-align: center;
+    	}
+    	
+    </style>
+  </head>
+  <body>
+    <h1>Image to PDF Converter</h1>
+    <input type="file" id="input">
+    <button onclick="convert()">Convert to PDF</button>
+    <div id="output"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+      function convert() {
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        if (input.files && input.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+              const doc = new jsPDF();
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, img.width, img.height);
+              const imgData = canvas.toDataURL('image/jpeg', 1.0);
+              doc.addImage(imgData, 'JPEG', 0, 0);
+              const pdfData = doc.output();
+              const blob = new Blob([pdfData], { type: 'application/pdf' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'image.pdf';
+              link.click();
+              output.innerHTML = '';
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(input.files[0]);
+        }
+      }
+    </script>
+  </body>
+</html>
