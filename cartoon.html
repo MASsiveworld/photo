@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Cartoonify Your Photo</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <style type="text/css">
+    	h1 {
+    	text-align: center;
+    	font-size: 36px;
+    	}
+    	
+    	form {
+    	display: flex;
+    	flex-direction: column;
+    	align-items: center;
+    	}
+    	
+    	canvas {
+    	display: block;
+    	margin: 0 auto;
+    	border: 1px solid black;
+    	}
+    	
+    </style>
+  </head>
+  <body>
+    <h1>Cartoonify Your Photo</h1>
+    <form>
+      <input type="file" id="inputImage" accept="image/*" onchange="loadImage()" required>
+      <button type="button" onclick="cartoonify()">Cartoonify</button>
+    </form>
+    <br>
+    <canvas id="outputCanvas"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/toxicity"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image"></script>
+    <script src="cartoonify.js">
+    	const MOBILENET_MODEL_PATH = 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5';
+    	const HANDPOSE_MODEL_PATH = 'https://tfhub.dev/mediapipe/hands/4';
+    	const BODYPIX_MODEL_PATH = 'https://tfhub.dev/tensorflow/body-pix/2';
+    	const FACEMESH_MODEL_PATH = 'https://tfhub.dev/mediapipe/face_mesh/1';
+    	
+    	const inputImage = document.getElementById('inputImage');
+    	const outputCanvas = document.getElementById('outputCanvas');
+    	const context = outputCanvas.getContext('2d');
+    	let img = new Image();
+    	
+    	// Load TensorFlow.js models
+    	const loadModels = async () => {
+    	const [mobilenetModel, handposeModel, bodyPixModel, facemeshModel] = await Promise.all([
+    	tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v2_100_224/feature_vector/5'),
+    	handpose.load(),
+    	bodyPix.load(),
+    	facemesh.load(),
+    	]);
+    	return {
+    	mobilenet: mobilenetModel,
+    	handpose: handposeModel,
+    	bodyPix: bodyPixModel,
+    	facemesh: facemeshModel,
+    	};
+    	};
+    	
+    	// Define HTML elements
+    	const inputImage = document.getElementById('inputImage');
+    	const outputCanvas = document.getElementById('outputCanvas');
+    	const context = outputCanvas.getContext('2d');
+    	
+    	// Define the loadImage function
+    	const loadImage = () => {
+    	// Get the uploaded image file
+    	const file = inputImage.files[0];
+    	
+    	// Create a new FileReader instance
+    	const reader = new FileReader();
+    	
+    	// Define the onload function of the reader to draw the input image to the output canvas
+    	reader.onload = () => {
+    	// Create a new Image instance
+    	const img = new Image();
+    	
+    	// Define the onload function of the image to call the cartoonify function
+    	img.onload = () => {
+    	// Draw the input image to the output canvas
+    	outputCanvas.width = img.width;
+    	outputCanvas.height = img.height;
+    	context.drawImage(img, 0, 0);
+    	
+    	// Cartoonify the image
+    	cartoonify(img);
+    	};
+    	
+    	// Set the src attribute of the image to the uploaded file
+    	img.src = reader.result;
+    	};
+    	
+    	// Read the uploaded file as a data URL
+    	reader.readAsDataURL(file);
+    	};
+    	
+    	// Define the cartoonify function
+    	const cartoonify = async (img) => {
+    	// Load the TensorFlow.js models
+    	const { mobilenet, handpose, bodyPix, facemesh } = await loadModels();
+    	
+    	// Convert the input image to a tensor
+    	const inputTensor = tf.browser.fromPixels(outputCanvas);
+    	
+    	// Resize the input tensor to 224x224
+    	const resizedTensor = tf.image.resizeBilinear(inputTensor, [224, 224]);
+    	
+    	// Normalize the resized tensor
+    	const normalizedTensor = resizedTensor.div(255);
+    	
+    	// Make a prediction with MobileNet to get the feature vector
+    	const featureVector = await mobilenet.predict(normalizedTensor);
+    	
+    	// Make a prediction with the teachable machine model to get the cartoonified image
+    	const modelURL = 'https://teachablemachine.withgoogle.com/models/G_Sv0Tm7K/';
+    	const model = await tmImage.load(modelURL);
+    	const prediction = await model.predict(featureVector);
+    	
+    	// Convert the prediction tensor to an output image tensor
+    	const outputTensor = tf.tensor(prediction, [224, 224, 3], 'float32');
+    	
+    	// Upscale the output image tensor to the original size of the input image
+    	const upscaledTensor = tf.image.resizeBilinear(outputTensor, [img.height, img.width]);
+    	
+    	// Convert the upscaled tensor to an output image
+    	const outputImage = await tf.browser.toPixels(upscaledTensor);
+    	
+    	// Draw the output image to the output canvas
+    	context.drawImage(outputImage, 0, 0);
+    	};
+    	
+    	// Add an event listener to the inputImage element to call the loadImage function when an image is uploaded
+    	inputImage.addEventListener('change', loadImage);
+    	
+    </script>
+  </body>
+</html>
